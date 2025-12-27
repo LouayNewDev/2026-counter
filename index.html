@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Countdown to 2026</title>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}
+body{overflow:hidden;color:white;background:black}
+
+/* ===== SCENE ===== */
+.scene{
+    position:fixed;
+    inset:0;
+    transition:opacity 2s ease;
+    z-index:0;
+}
+.sky.day{background:linear-gradient(#6ec6ff,#dff5ff)}
+.sky.night{background:linear-gradient(#020024,#090979,#000)}
+.sky{position:absolute;inset:0}
+
+.ground{
+    position:absolute;
+    bottom:0;
+    width:100%;
+    height:30%;
+    background:linear-gradient(#1e7f3b,#0f3d1f);
+    transition:opacity 2s ease;
+}
+
+.celestial{
+    position:absolute;
+    top:12%;
+    right:12%;
+    width:120px;
+    height:120px;
+    border-radius:50%;
+    animation:float 6s ease-in-out infinite;
+}
+.sun{
+    background:radial-gradient(circle,#fff59d,#fbc02d);
+    box-shadow:0 0 80px #ffeb3b;
+}
+.moon{
+    background:radial-gradient(circle,#eee,#aaa);
+    box-shadow:0 0 40px #fff;
+}
+@keyframes float{50%{transform:translateY(-12px)}}
+
+/* ===== UI ===== */
+.center{
+    position:fixed;
+    inset:0;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    z-index:3;
+    text-align:center;
+}
+
+h1{
+    font-size:3rem;
+    margin-bottom:15px;
+    display:none;
+}
+
+.timer{
+    font-size:2rem;
+    letter-spacing:2px;
+    margin-bottom:25px;
+}
+
+/* ===== YEAR COUNTER ===== */
+.year{
+    display:flex;
+    gap:6px;
+    font-size:8rem;
+    font-weight:bold;
+}
+
+.slot{
+    width:90px;
+    height:120px;
+    overflow:hidden;
+    position:relative;
+}
+
+.slot::before,
+.slot::after{
+    content:"";
+    position:absolute;
+    left:0;
+    width:100%;
+    height:25%;
+    z-index:2;
+    pointer-events:none;
+}
+.slot::before{
+    top:0;
+    background:linear-gradient(to bottom,rgba(0,0,0,.8),transparent);
+}
+.slot::after{
+    bottom:0;
+    background:linear-gradient(to top,rgba(0,0,0,.85),transparent);
+}
+
+.strip{
+    position:absolute;
+    top:0;
+    left:0;
+    width:100%;
+}
+
+.strip.animate{
+    animation:roll 2s cubic-bezier(.25,.9,.3,1) forwards;
+}
+
+.strip div{
+    height:120px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    color:#ddd;
+    filter:blur(.25px);
+}
+
+.strip.animate div:last-child{
+    color:#e8ffff;
+    text-shadow:0 0 18px rgba(180,255,255,.6);
+}
+
+@keyframes roll{
+    from{transform:translateY(0)}
+    to{transform:translateY(-120px)}
+}
+
+/* ===== PREVIEW BUTTON ===== */
+.preview-btn {
+    margin-top: 25px;
+    padding: 10px 24px;
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 30px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(5px);
+}
+
+.preview-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: scale(1.05);
+}
+
+/* ===== FIREWORKS ===== */
+canvas{
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    z-index:2;
+}
+</style>
+</head>
+
+<body>
+
+<!-- SCENE -->
+<div id="scene" class="scene">
+    <div id="sky" class="sky"></div>
+    <div id="celestial" class="celestial"></div>
+    <div id="ground" class="ground"></div>
+</div>
+
+<canvas id="fx"></canvas>
+
+<div class="center">
+    <h1 id="title">🎉 Happy New Year 🎉</h1>
+    <div id="timer" class="timer"></div>
+
+    <div class="year">
+        <div class="slot"><div class="strip"><div>2</div></div></div>
+        <div class="slot"><div class="strip"><div>0</div></div></div>
+        <div class="slot"><div class="strip"><div>2</div></div></div>
+        <div class="slot">
+            <div id="lastDigit" class="strip">
+                <div>5</div>
+                <div>6</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ✨ PREVIEW BUTTON -->
+    <button id="previewBtn" class="preview-btn">✨ Preview New Year</button>
+</div>
+
+<script>
+/* ===== DAY / NIGHT ===== */
+const sky=document.getElementById("sky");
+const celestial=document.getElementById("celestial");
+const ground=document.getElementById("ground");
+const scene=document.getElementById("scene");
+
+function updateScene(){
+    const h=new Date().getHours();
+    const isDay=h>=6&&h<18;
+    sky.className="sky "+(isDay?"day":"night");
+    celestial.className="celestial "+(isDay?"sun":"moon");
+}
+updateScene();
+setInterval(updateScene,60000);
+
+/* ===== COUNTDOWN ===== */
+const target=new Date("2026-01-01T00:00:00").getTime();
+const timer=document.getElementById("timer");
+const title=document.getElementById("title");
+const lastDigit=document.getElementById("lastDigit");
+const previewBtn=document.getElementById("previewBtn");
+
+let fireworksOn=false;
+let rolled=false;
+
+function newYear(){
+    if(rolled) return;
+    rolled=true;
+
+    timer.style.display="none";
+    title.style.display="block";
+
+    scene.style.opacity="0";
+    ground.style.opacity="0";
+
+    lastDigit.classList.add("animate");
+    fireworksOn=true;
+    
+    // Hide preview button after activation
+    previewBtn.style.display = "none";
+}
+
+function tick(){
+    const diff=target-Date.now();
+    if(diff<=0){
+        newYear();
+        return;
+    }
+    const d=Math.floor(diff/86400000);
+    const h=Math.floor(diff/3600000)%24;
+    const m=Math.floor(diff/60000)%60;
+    const s=Math.floor(diff/1000)%60;
+    timer.textContent=`${d}days / ${h}hours / ${m}minutes / ${s}seconds`;
+}
+
+// Check if already past target
+if (Date.now() >= target) {
+    newYear();
+} else {
+    tick();
+    setInterval(tick, 1000);
+}
+
+// Preview button
+previewBtn.addEventListener("click", newYear);
+
+/* ===== FIREWORKS ===== */
+const c=document.getElementById("fx");
+const ctx=c.getContext("2d");
+function resize(){c.width=innerWidth;c.height=innerHeight}
+resize();addEventListener("resize",resize);
+
+const fw=[],pt=[];
+class Firework{
+    constructor(){
+        this.x=Math.random()*c.width;
+        this.y=c.height;
+        this.ty=Math.random()*c.height*0.6;
+        this.col=`hsl(${Math.random()*360},100%,70%)`;
+    }
+    update(){
+        this.y-=5;
+        if(this.y<=this.ty){
+            for(let i=0;i<Math.random()*120;i++)pt.push(new Particle(this.x,this.y,this.col));
+            return true;
+        }
+    }
+    draw(){ctx.fillStyle=this.col;ctx.fillRect(this.x,this.y,11,11)}
+}
+class Particle{
+    constructor(x,y,c){
+        this.x=x;this.y=y;this.c=c;
+        const a=Math.random()*Math.PI*2,s=Math.random()*6;
+        this.vx=Math.cos(a)*s;this.vy=Math.sin(a)*s;
+        this.life=80;
+    }
+    update(){this.x+=this.vx;this.y+=this.vy;this.vy+=.05;this.life--}
+    draw(){ctx.fillStyle=this.c;ctx.beginPath();ctx.arc(this.x,this.y,2,0,7);ctx.fill()}
+}
+(function loop(){
+    ctx.fillStyle="rgba(0,0,0,.25)";
+    ctx.fillRect(0,0,c.width,c.height);
+    if(fireworksOn&&Math.random()<.05)fw.push(new Firework());
+    fw.forEach((f,i)=>{if(f.update())fw.splice(i,1);f.draw()});
+    pt.forEach((p,i)=>{p.update();p.draw();if(p.life<=0)pt.splice(i,1)});
+    requestAnimationFrame(loop);
+})();
+</script>
+
+</body>
+</html>
